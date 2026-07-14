@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: ticket-booking-system
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/ticket_booking?createDatabaseIfNotExist=true&serverTimezone=UTC
+    username: root
+    password: YourStrongPassword123!
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
