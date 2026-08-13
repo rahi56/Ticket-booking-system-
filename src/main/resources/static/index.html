@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise Express — NextGen Bus Ticket Booking & Management</title>
+  <meta name="description" content="Book intercity bus tickets instantly. Luxury AC Scania & Volvo fleets, real-time seat allocation, and digital boarding passes.">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff', 100: '#e0e7ff',
+              400: '#818cf8', 500: '#6366f1',
+              600: '#4f46e5', 700: '#4338ca', 900: '#1e1b4b'
+            },
+            accent: { 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+            surface: { dark: '#060b14', card: '#0d1421', cardHover: '#131d2e', border: '#1c2d45' }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['Fira Code', 'monospace']
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-out',
+            'slide-up': 'slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+            'pulse-slow': 'pulse 3s infinite',
+          },
+          keyframes: {
+            fadeIn: { from: { opacity: '0' }, to: { opacity: '1' } },
+            slideUp: { from: { opacity: '0', transform: 'translateY(16px)' }, to: { opacity: '1', transform: 'translateY(0)' } }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --brand-glow: rgba(99, 102, 241, 0.4);
+      --accent-glow: rgba(6, 182, 212, 0.35);
+    }
+
+    /* Glassmorphism Panels */
+    .glass-panel {
+      background: rgba(13, 20, 33, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .glass-nav {
+      background: rgba(6, 11, 20, 0.95);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 50%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .gradient-brand {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 60%, #06b6d4 100%);
+    }
+
+    .gradient-danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .gradient-success { background: linear-gradient(135deg, #10b981, #059669); }
+    .gradient-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+    /* Stats Cards */
+    .stat-card { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .stat-card:hover { transform: translateY(-3px); }
+
+    /* Bus Seat Layout */
+    .seat-btn {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 700;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer; position: relative;
+    }
+    .seat-available {
+      background-color: #1e293b;
+      border: 1.5px solid #334155;
+      color: #94a3b8;
+    }
+    .seat-available:hover {
+      background-color: rgba(99, 102, 241, 0.2);
+      border-color: #6366f1; color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    .seat-selected {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border: 1.5px solid #a5b4fc; color: #fff;
+      box-shadow: 0 0 16px rgba(99, 102, 241, 0.65);
+      transform: scale(1.08);
+    }
+    .seat-occupied {
+      background-color: rgba(239, 68, 68, 0.12);
+      border: 1.5px solid rgba(239, 68, 68, 0.28);
+      color: #f87171; cursor: not-allowed; opacity: 0.65;
+    }
+
+    /* Admin Access Denied */
+    .access-denied {
+      background: linear-gradient(135deg, rgba(239,68,68,0.05) 0%, rgba(220,38,38,0.02) 100%);
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+
+    /* Input Styles */
+    .form-input {
+      width: 100%; padding: 10px 14px;
+      background: rgba(6, 11, 20, 0.8);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; color: #f1f5f9;
+      font-size: 0.83rem; font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+    }
+    .form-input::placeholder { color: #475569; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2563eb; }
+
+    /* Trip Card */
+    .trip-card {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .trip-card:hover {
+      border-color: rgba(99, 102, 241, 0.5) !important;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 24px rgba(99,102,241,0.1);
+    }
+
+    /* Tab Active */
+    .tab-active {
+      background: linear-gradient(135deg, #4f46e5, #3b82f6);
+      color: white;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+    }
+
+    /* Ticket Tear Effect */
+    .ticket-tear {
+      position: relative;
+      overflow: hidden;
+    }
+    .ticket-tear::before {
+      content: '';
+      position: absolute; left: -14px; top: 50%;
+      transform: translateY(-50%);
+      width: 28px; height: 28px;
+      background: #060b14;
+      border-radius: 50%;
+      z-index: 2;
+    }
+    .ticket-tear::after {
+      content: '';
+      position: absolute; right: -14px; top: 50%;
+      transform: translateY(-50%);
+      width: 28px; height: 28px;
+      background: #060b14;
+      border-radius: 50%;
+      z-index: 2;
+    }
+
+    /* Badge animations */
+    .badge-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+    /* Table row hover */
+    .table-row-hover:hover { background: rgba(30, 58, 95, 0.25); }
+
+    /* Ambient glow bg */
+    .ambient-glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      opacity: 0.12;
+    }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printableTicket, #printableTicket * { visibility: visible; }
+      #printableTicket { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body class="bg-surface-dark text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- ======= TOP NAVIGATION BAR ======= -->
+  <header class="sticky top-0 z-40 glass-nav">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-20">
+
+        <!-- Logo & Branding -->
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="switchMainTab('searchTab', document.getElementById('navSearchBtn'))">
+          <div class="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center text-2xl shadow-lg shadow-brand-500/30 transform hover:rotate-6 hover:scale-105 transition-all duration-300">
+            🚌
+          </div>
+          <div>
+            <span class="text-xl font-extrabold tracking-tight gradient-text">ENTERPRISE EXPRESS</span>
+            <div class="flex items-center space-x-2 text-xs text-slate-500 font-medium">
+              <span>NextGen Ticket Booking</span>
+              <span class="w-1 h-1 rounded-full bg-accent-400"></span>
+              <span class="text-emerald-400">Live Services</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Auth Status & CTA -->
+        <div class="flex items-center space-x-3">
+          <div class="hidden md:flex items-center space-x-2.5 px-4 py-2 rounded-full bg-slate-900/60 border border-slate-800 text-xs">
+            <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#ef4444]"></span>
+            <span id="authStatusText" class="text-slate-300">Guest Session</span>
+          </div>
+          <button id="authActionBtn" onclick="openAuthModal()" id="authBtn"
+            class="px-5 py-2.5 rounded-xl font-semibold text-sm gradient-brand text-white shadow-md shadow-brand-500/20 hover:shadow-lg hover:shadow-brand-500/30 hover:scale-[1.03] active:scale-95 transition-all duration-200">
+            Sign In / Register
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ======= MAIN NAVIGATION TABS ======= -->
+  <div class="border-b border-slate-800/60 bg-slate-950/30 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-1 overflow-x-auto py-3 no-scrollbar" aria-label="Main Navigation">
+
+        <button id="navSearchBtn" onclick="switchMainTab('searchTab', this)"
+          class="tab-btn tab-active px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-2 whitespace-nowrap transition-all duration-200">
+          <span>🔍</span><span>Find Trips</span>
+        </button>
+
+        <button id="navBookingsBtn" onclick="switchMainTab('bookingsTab', this)"
+          class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200">
+          <span>🎫</span><span>My Bookings</span>
+        </button>
+
+        <button id="navFleetBtn" onclick="switchMainTab('fleetTab', this)"
+          class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200">
+          <span>🚍</span><span>Fleet & Routes</span>
+        </button>
+
+        <!-- Profile tab: only visible when logged in -->
+        <button id="navProfileBtn" onclick="switchMainTab('profileTab', this)"
+          class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold items-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200 hidden">
+          <span>👤</span><span>My Profile</span>
+        </button>
+
+        <!-- Admin tab: ONLY visible when logged in as ADMIN -->
+        <button id="navAdminBtn" onclick="switchMainTab('adminTab', this)"
+          class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold items-center space-x-2 whitespace-nowrap transition-all duration-200 hidden">
+          <span>⚙️</span><span>Admin Portal</span>
+        </button>
+
+        <button id="navSandboxBtn" onclick="switchMainTab('securityTab', this)"
+          class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200">
+          <span>🛡️</span><span>API Sandbox</span>
+        </button>
+
+      </nav>
+    </div>
+  </div>
+
+  <!-- ======= MAIN CONTENT AREA ======= -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- ============================================ -->
+    <!-- TAB 1: SEARCH & BOOK TRIPS                   -->
+    <!-- ============================================ -->
+    <div id="searchTab" class="tab-content space-y-8 animate-fade-in">
+
+      <!-- HERO + SEARCH CARD -->
+      <div class="relative rounded-3xl overflow-hidden glass-panel p-7 sm:p-12 shadow-2xl">
+        <div class="ambient-glow -top-20 -left-20 w-96 h-96 bg-brand-500"></div>
+        <div class="ambient-glow -bottom-20 -right-20 w-96 h-96 bg-accent-500"></div>
+
+        <div class="relative z-10">
+          <div class="max-w-2xl mb-8">
+            <span class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 text-xs font-bold uppercase tracking-wider mb-4">
+              ⚡ Premium Intercity Travel
+            </span>
+            <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-3 leading-tight">
+              Book Your Next<br><span class="gradient-text">Journey Across Bangladesh</span>
+            </h1>
+            <p class="text-slate-400 text-sm sm:text-base">
+              Instant online seat allocation · Luxury AC Scania & Volvo fleets · Real-time ticket confirmation
+            </p>
+          </div>
+
+          <!-- Search Form -->
+          <form id="searchForm" onsubmit="event.preventDefault(); handleSearchTrips();" class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">From (Source)</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">📍</span>
+                  <input type="text" id="searchSource" value="Dhaka" placeholder="e.g. Dhaka" required
+                    class="form-input pl-10">
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">To (Destination)</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">🏁</span>
+                  <input type="text" id="searchDestination" value="Chittagong" placeholder="e.g. Chittagong" required
+                    class="form-input pl-10">
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Journey Date</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">📅</span>
+                  <input type="date" id="searchDate" required class="form-input pl-10">
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-1">
+              <div class="flex items-center space-x-2 overflow-x-auto max-w-full">
+                <span class="text-xs text-slate-500 font-semibold whitespace-nowrap">Popular:</span>
+                <button type="button" onclick="setSearchRoute('Dhaka', 'Chittagong')"
+                  class="px-3 py-1.5 rounded-xl bg-slate-800/60 hover:bg-brand-500/20 border border-slate-700/60 hover:border-brand-500/60 text-xs font-medium text-slate-300 hover:text-white transition-all whitespace-nowrap">
+                  Dhaka ➔ Chittagong
+                </button>
+                <button type="button" onclick="setSearchRoute('Dhaka', 'Sylhet')"
+                  class="px-3 py-1.5 rounded-xl bg-slate-800/60 hover:bg-brand-500/20 border border-slate-700/60 hover:border-brand-500/60 text-xs font-medium text-slate-300 hover:text-white transition-all whitespace-nowrap">
+                  Dhaka ➔ Sylhet
+                </button>
+                <button type="button" onclick="setSearchRoute('Dhaka', 'Cox\'s Bazar')"
+                  class="px-3 py-1.5 rounded-xl bg-slate-800/60 hover:bg-brand-500/20 border border-slate-700/60 hover:border-brand-500/60 text-xs font-medium text-slate-300 hover:text-white transition-all whitespace-nowrap">
+                  Dhaka ➔ Cox's Bazar
+                </button>
+              </div>
+
+              <button type="submit"
+                class="w-full sm:w-auto px-8 py-3.5 rounded-2xl gradient-brand font-bold text-sm text-white shadow-lg shadow-brand-500/30 hover:scale-[1.03] hover:shadow-brand-500/40 active:scale-95 transition-all duration-200 flex items-center justify-center space-x-2">
+                <span>Search Available Trips</span><span>🚀</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- TRIP RESULTS -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+            <span>Scheduled Departures</span>
+            <span id="tripCountBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">0 Found</span>
+          </h2>
+        </div>
+        <div id="tripResultsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div class="col-span-full py-16 text-center glass-panel rounded-3xl border border-slate-800">
+            <div class="text-5xl mb-4">🚌</div>
+            <h3 class="text-lg font-bold text-slate-300 mb-2">Search for Bus Departures</h3>
+            <p class="text-sm text-slate-500 max-w-md mx-auto">Select your departure city, destination, and journey date to see available seats and pricing.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TAB 2: MY BOOKINGS                           -->
+    <!-- ============================================ -->
+    <div id="bookingsTab" class="tab-content space-y-6 hidden animate-fade-in">
+      <div class="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+          <div>
+            <h2 class="text-2xl font-bold text-white flex items-center space-x-2">
+              <span class="text-2xl">🎫</span><span>My Booked Tickets</span>
+            </h2>
+            <p class="text-sm text-slate-400 mt-1">View active boarding passes and manage cancellations.</p>
+          </div>
+          <button onclick="loadMyBookings()"
+            class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition-all flex items-center space-x-2">
+            <span>🔄</span><span>Refresh</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto rounded-2xl border border-slate-800">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-950/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="px-6 py-4">Booking Ref</th>
+                <th class="px-6 py-4">Trip Details</th>
+                <th class="px-6 py-4">Seat #</th>
+                <th class="px-6 py-4">Total Fare</th>
+                <th class="px-6 py-4">Status</th>
+                <th class="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="myBookingsTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+              <tr>
+                <td colspan="6" class="px-6 py-14 text-center">
+                  <div class="flex flex-col items-center space-y-3">
+                    <span class="text-4xl">🔐</span>
+                    <span class="text-slate-500 text-sm">Please sign in to view your tickets.</span>
+                    <button onclick="openAuthModal()" class="px-4 py-2 rounded-xl gradient-brand text-xs font-bold text-white">Sign In</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TAB 3: FLEET & ROUTES CATALOG               -->
+    <!-- ============================================ -->
+    <div id="fleetTab" class="tab-content space-y-8 hidden animate-fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Buses Catalog -->
+        <div class="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 class="text-lg font-bold text-white flex items-center space-x-2"><span>🚌</span><span>Fleet Vehicles</span></h3>
+            <button onclick="loadBusesCatalog()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all">Refresh</button>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-slate-800">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="bg-slate-950/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="px-4 py-3">Bus No</th>
+                  <th class="px-4 py-3">Operator</th>
+                  <th class="px-4 py-3">Type</th>
+                  <th class="px-4 py-3">Seats</th>
+                </tr>
+              </thead>
+              <tbody id="busesTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+                <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">Loading fleet...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Routes Catalog -->
+        <div class="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 class="text-lg font-bold text-white flex items-center space-x-2"><span>📍</span><span>Active Travel Routes</span></h3>
+            <button onclick="loadRoutesCatalog()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all">Refresh</button>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-slate-800">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="bg-slate-950/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="px-4 py-3">Origin</th>
+                  <th class="px-4 py-3">Destination</th>
+                  <th class="px-4 py-3">Distance</th>
+                  <th class="px-4 py-3">Est. Time</th>
+                </tr>
+              </thead>
+              <tbody id="routesTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+                <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">Loading routes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TAB 4: MY PROFILE (auth-gated)               -->
+    <!-- ============================================ -->
+    <div id="profileTab" class="tab-content space-y-6 hidden animate-fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Profile Card -->
+        <div class="glass-panel p-6 rounded-3xl border border-slate-800 space-y-5">
+          <div class="text-center space-y-3">
+            <div id="profileAvatar" class="w-20 h-20 rounded-3xl gradient-brand mx-auto flex items-center justify-center text-3xl shadow-lg shadow-brand-500/30">
+              👤
+            </div>
+            <div>
+              <h3 id="profileFullName" class="text-xl font-extrabold text-white">—</h3>
+              <p id="profileEmail" class="text-sm text-slate-400">—</p>
+            </div>
+            <span id="profileRoleBadge" class="inline-flex px-3 py-1 rounded-full text-xs font-bold border">—</span>
+          </div>
+
+          <div class="pt-4 border-t border-slate-800 space-y-3 text-sm">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Phone</span>
+              <span id="profilePhone" class="text-slate-200 font-medium">—</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400">Member ID</span>
+              <span id="profileId" class="font-mono text-brand-400">—</span>
+            </div>
+          </div>
+
+          <button onclick="logout()" class="w-full py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 text-xs font-bold transition-all">
+            Sign Out of Account
+          </button>
+        </div>
+
+        <!-- Booking History -->
+        <div class="lg:col-span-2 glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 class="text-lg font-bold text-white">📋 Booking History</h3>
+            <button onclick="loadProfileBookings()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all">Refresh</button>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-slate-800">
+            <table class="w-full text-left text-sm text-slate-300">
+              <thead class="bg-slate-950/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="px-4 py-3">Ref</th>
+                  <th class="px-4 py-3">Route</th>
+                  <th class="px-4 py-3">Seat</th>
+                  <th class="px-4 py-3">Fare</th>
+                  <th class="px-4 py-3">Status</th>
+                  <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="profileBookingsBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+                <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Loading your bookings...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TAB 5: ADMIN PORTAL (ADMIN ONLY)             -->
+    <!-- ============================================ -->
+    <div id="adminTab" class="tab-content space-y-8 hidden animate-fade-in">
+
+      <!-- ACCESS DENIED — shown to non-admins who navigate here -->
+      <div id="adminAccessDenied" class="hidden">
+        <div class="access-denied rounded-3xl p-12 text-center space-y-5">
+          <div class="text-6xl">🔒</div>
+          <h2 class="text-2xl font-extrabold text-white">Access Restricted</h2>
+          <p class="text-slate-400 max-w-md mx-auto">The Admin Portal requires <strong class="text-brand-400">ROLE_ADMIN</strong> privileges. Please sign in with an admin account to access system management.</p>
+          <div class="flex justify-center space-x-3 pt-2">
+            <button onclick="openAuthModal()" class="px-6 py-2.5 rounded-xl gradient-brand text-sm font-bold text-white">Sign In as Admin</button>
+            <button onclick="switchMainTab('searchTab', document.getElementById('navSearchBtn'))" class="px-6 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm font-semibold text-slate-200 hover:bg-slate-700 transition-all">Go to Booking</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN PORTAL CONTENT — shown only to admins -->
+      <div id="adminPortalContent" class="hidden space-y-6">
+
+        <!-- Header -->
+        <div class="glass-panel p-6 rounded-3xl border border-slate-800">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-white flex items-center space-x-2">
+                <span>⚙️</span><span>System Management Portal</span>
+              </h2>
+              <p class="text-sm text-slate-400 mt-1">Manage operators, fleet, routes, schedules and customer bookings.</p>
+            </div>
+            <span class="flex items-center space-x-2 px-4 py-2 rounded-full bg-brand-500/15 text-brand-400 border border-brand-500/30 text-xs font-bold">
+              <span class="w-2 h-2 rounded-full bg-brand-400 badge-pulse"></span>
+              <span>ADMIN SESSION ACTIVE</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Stats Dashboard -->
+        <div id="adminStatsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Admin Management Panel -->
+        <div class="glass-panel p-6 rounded-3xl border border-slate-800 space-y-0">
+
+          <!-- Sub-Navigation -->
+          <div class="flex space-x-1.5 overflow-x-auto pb-5 border-b border-slate-800 mb-6">
+            <button id="adminSubDashBtn" onclick="switchAdminSection('adminDashSection', this)" class="admin-subtab whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white">
+              📊 Dashboard
+            </button>
+            <button onclick="switchAdminSection('adminOpsSection', this)" class="admin-subtab whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-slate-800 transition-all">
+              🏢 Operators
+            </button>
+            <button onclick="switchAdminSection('adminBusesSection', this)" class="admin-subtab whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-slate-800 transition-all">
+              🚌 Fleet Buses
+            </button>
+            <button onclick="switchAdminSection('adminRoutesSection', this)" class="admin-subtab whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-slate-800 transition-all">
+              📍 Routes
+            </button>
+            <button onclick="switchAdminSection('adminTripsSection', this)" class="admin-subtab whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-slate-800 transition-all">
+              ⏰ Trip Scheduler
+            </button>
+            <button onclick="switchAdminSection('adminBookingsSection', this)" class="admin-subtab whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-slate-800 transition-all">
+              📋 All Bookings
+            </button>
+          </div>
+
+          <!-- SECTION DASHBOARD -->
+          <div id="adminDashSection" class="admin-section space-y-5">
+            <div class="text-center py-8">
+              <div class="text-4xl mb-3">📊</div>
+              <h4 class="text-lg font-bold text-white mb-1">System Overview</h4>
+              <p class="text-sm text-slate-500">Real-time statistics loaded above. Use the tabs to manage each entity.</p>
+            </div>
+          </div>
+
+          <!-- SECTION A: OPERATORS -->
+          <div id="adminOpsSection" class="admin-section hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="event.preventDefault(); handleCreateOperator();" class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 space-y-4">
+                <h4 class="font-bold text-white text-base flex items-center space-x-2"><span>🏢</span><span>Register Operator</span></h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Company Name *</label>
+                    <input type="text" id="opName" placeholder="e.g. Desh Travels" required class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Email *</label>
+                    <input type="email" id="opEmail" placeholder="info@company.com" required class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Phone *</label>
+                    <input type="text" id="opPhone" placeholder="+8801700000000" required class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Address</label>
+                    <input type="text" id="opAddress" placeholder="Dhaka, Bangladesh" class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">License No</label>
+                    <input type="text" id="opLicense" placeholder="LIC-12345" class="form-input">
+                  </div>
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl gradient-brand text-xs font-bold text-white shadow-md shadow-brand-500/20 hover:scale-[1.02] transition-all">Create Operator</button>
+              </form>
+
+              <div class="lg:col-span-2 overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-slate-950 text-slate-400 font-bold uppercase border-b border-slate-800">
+                    <tr>
+                      <th class="px-4 py-3">Name</th>
+                      <th class="px-4 py-3">Contact</th>
+                      <th class="px-4 py-3">License</th>
+                      <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminOpsTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+                    <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">Loading operators...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION B: BUSES -->
+          <div id="adminBusesSection" class="admin-section hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="event.preventDefault(); handleCreateBus();" class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 space-y-4">
+                <h4 class="font-bold text-white text-base flex items-center space-x-2"><span>🚌</span><span>Add Bus to Fleet</span></h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Bus Number *</label>
+                    <input type="text" id="busNum" placeholder="BUS-909" required class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Registration Number *</label>
+                    <input type="text" id="busReg" placeholder="DHAKA-METRO-11-9999" required class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Bus Category</label>
+                    <select id="busType" class="form-input">
+                      <option value="AC Scania Multi-Axle">AC Scania Multi-Axle</option>
+                      <option value="AC Volvo B11R">AC Volvo B11R</option>
+                      <option value="Hyundai Business Class">Hyundai Business Class</option>
+                      <option value="Sleeper Deluxe">Sleeper Deluxe</option>
+                      <option value="Non-AC Standard">Non-AC Standard</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Operator *</label>
+                    <select id="busOperatorSelect" required class="form-input">
+                      <option disabled value="">— Select Operator —</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Total Seats</label>
+                    <input type="number" id="busSeats" value="40" min="1" max="60" required class="form-input">
+                  </div>
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl gradient-brand text-xs font-bold text-white shadow-md shadow-brand-500/20 hover:scale-[1.02] transition-all">Save Bus to Fleet</button>
+              </form>
+
+              <div class="lg:col-span-2 overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-slate-950 text-slate-400 font-bold uppercase border-b border-slate-800">
+                    <tr>
+                      <th class="px-4 py-3">Bus No</th>
+                      <th class="px-4 py-3">Reg No</th>
+                      <th class="px-4 py-3">Type</th>
+                      <th class="px-4 py-3">Seats</th>
+                      <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminBusesTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Loading buses...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION C: ROUTES -->
+          <div id="adminRoutesSection" class="admin-section hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="event.preventDefault(); handleCreateRoute();" class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 space-y-4">
+                <h4 class="font-bold text-white text-base flex items-center space-x-2"><span>📍</span><span>Add Route</span></h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Source City *</label>
+                    <input type="text" id="routeSource" placeholder="e.g. Dhaka" required class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Destination City *</label>
+                    <input type="text" id="routeDest" placeholder="e.g. Rajshahi" required class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Distance (KM) *</label>
+                    <input type="number" step="0.1" id="routeDistance" placeholder="250.0" required class="form-input">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Estimated Hours *</label>
+                    <input type="number" id="routeDuration" placeholder="6" required class="form-input">
+                  </div>
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl gradient-brand text-xs font-bold text-white shadow-md shadow-brand-500/20 hover:scale-[1.02] transition-all">Save Route</button>
+              </form>
+
+              <div class="lg:col-span-2 overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-slate-950 text-slate-400 font-bold uppercase border-b border-slate-800">
+                    <tr>
+                      <th class="px-4 py-3">Source</th>
+                      <th class="px-4 py-3">Destination</th>
+                      <th class="px-4 py-3">Distance</th>
+                      <th class="px-4 py-3">Duration</th>
+                      <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminRoutesTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Loading routes...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION D: TRIPS SCHEDULER -->
+          <div id="adminTripsSection" class="admin-section hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="event.preventDefault(); handleCreateTrip();" class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800 space-y-4">
+                <h4 class="font-bold text-white text-base flex items-center space-x-2"><span>⏰</span><span>Schedule New Trip</span></h4>
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Select Bus *</label>
+                    <select id="tripBusSelect" required class="form-input">
+                      <option disabled value="">— Select Bus —</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Select Route *</label>
+                    <select id="tripRouteSelect" required class="form-input">
+                      <option disabled value="">— Select Route —</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1.5">Journey Date *</label>
+                    <input type="date" id="tripDate" required class="form-input">
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-400 mb-1.5">Departure *</label>
+                      <input type="time" id="tripDepTime" value="08:00" required class="form-input">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-400 mb-1.5">Arrival *</label>
+                      <input type="time" id="tripArrTime" value="14:00" required class="form-input">
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-400 mb-1.5">Fare (BDT) *</label>
+                      <input type="number" step="50" id="tripFare" value="1200" required class="form-input">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-semibold text-slate-400 mb-1.5">Seats *</label>
+                      <input type="number" id="tripSeats" value="40" required class="form-input">
+                    </div>
+                  </div>
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-xl gradient-brand text-xs font-bold text-white shadow-md shadow-brand-500/20 hover:scale-[1.02] transition-all">Schedule Trip</button>
+              </form>
+
+              <div class="lg:col-span-2 overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="w-full text-left text-xs text-slate-300">
+                  <thead class="bg-slate-950 text-slate-400 font-bold uppercase border-b border-slate-800">
+                    <tr>
+                      <th class="px-4 py-3">ID</th>
+                      <th class="px-4 py-3">Route</th>
+                      <th class="px-4 py-3">Date / Time</th>
+                      <th class="px-4 py-3">Fare</th>
+                      <th class="px-4 py-3">Seats</th>
+                      <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminTripsTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Loading trips...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION E: ALL BOOKINGS -->
+          <div id="adminBookingsSection" class="admin-section hidden">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-bold text-white text-base">Customer Bookings Audit Trail</h4>
+              <button onclick="loadAdminAllBookings()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all">Refresh</button>
+            </div>
+            <div class="overflow-x-auto rounded-2xl border border-slate-800">
+              <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-950 text-slate-400 font-bold uppercase border-b border-slate-800">
+                  <tr>
+                    <th class="px-4 py-3">Booking ID</th>
+                    <th class="px-4 py-3">Customer</th>
+                    <th class="px-4 py-3">Trip</th>
+                    <th class="px-4 py-3">Seat</th>
+                    <th class="px-4 py-3">Fare</th>
+                    <th class="px-4 py-3">Status</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminAllBookingsTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+                  <tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">Loading bookings...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+     <!--TAB 6: API SANDBOX                           -->
+    <!-- ============================================ -->
+   <!-- <div id="securityTab" class="tab-content space-y-6 hidden animate-fade-in">-->
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- JWT Token Display -->
+          <!--
+        <div class="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+          <h3 class="text-lg font-bold text-white flex items-center space-x-2"><span>🔑</span><span>Active Bearer Token</span></h3>
+          <div id="tokenDisplay" class="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-xs font-mono text-accent-400 break-all min-h-[80px] leading-relaxed">
+            No active session token. Please sign in.
+          </div>
+          <div class="flex space-x-3">
+            <button onclick="copyToken()" class="flex-1 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition-all">
+              📋 Copy JWT Token
+            </button>
+            <button onclick="logout()" class="px-4 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all">
+              Clear Session
+            </button>
+          </div>
+        </div>
+        -->
+
+        <!-- Custom Request Builder -->
+        <div class="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+          <h3 class="text-lg font-bold text-white flex items-center space-x-2"><span>⚡</span><span>REST API Request Builder</span></h3>
+          <div class="flex space-x-2">
+            <select id="reqMethod" class="form-input w-auto px-3">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+            <input type="text" id="reqUrl" value="/api/v1/auth/hello" class="form-input flex-grow font-mono">
+          </div>
+          <label class="flex items-center space-x-2 text-xs text-slate-400 cursor-pointer">
+            <input type="checkbox" id="reqIncludeAuth" checked class="rounded border-slate-700 text-brand-500 bg-slate-900">
+            <span>Include Authorization Bearer Header</span>
+          </label>
+          <button onclick="sendCustomRequest()" class="w-full py-2.5 rounded-xl gradient-brand text-xs font-bold text-white hover:scale-[1.02] transition-all shadow-md shadow-brand-500/20">
+            Execute API Request 🚀
+          </button>
+        </div>
+      </div>
+
+      <!-- Response Output -->
+      <div class="glass-panel p-6 rounded-3xl border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-white text-sm flex items-center space-x-2"><span>📡</span><span>Response Output</span></h4>
+          <span id="statusPill" class="hidden text-xs font-mono px-3 py-1 rounded-full font-bold"></span>
+        </div>
+        <pre id="responseOutput" class="p-4 bg-slate-950 rounded-2xl border border-slate-800 text-xs font-mono text-slate-300 max-h-80 overflow-y-auto">// Response will appear here after executing a request...</pre>
+      </div>
+
+      <!-- Endpoint Security Audit -->
+      <div class="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold text-white flex items-center space-x-2"><span>🔒</span><span>Automated Security Audit</span></h3>
+          <button onclick="runSecurityAudit()" class="px-5 py-2 rounded-xl gradient-brand text-xs font-bold text-white shadow-md shadow-brand-500/20 hover:scale-[1.02] transition-all">
+            Run Authorization Audit 🧪
+          </button>
+        </div>
+        <div class="overflow-x-auto rounded-2xl border border-slate-800">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-950 text-slate-400 font-bold uppercase border-b border-slate-800">
+              <tr>
+                <th class="px-4 py-3">Endpoint</th>
+                <th class="px-4 py-3">Method</th>
+                <th class="px-4 py-3">Allowed Roles</th>
+                <th class="px-4 py-3">Auth Required</th>
+                <th class="px-4 py-3">Audit Outcome</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody" class="divide-y divide-slate-800/60 bg-slate-900/30">
+              <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Click "Run Authorization Audit" to test permissions.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+
+  </main>
+
+  <!-- ======= FOOTER ======= -->
+  <footer class="border-t border-slate-800/60 bg-slate-950/50 py-8 mt-4">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <div>Enterprise Express Bus Reservation System © 2026. Built with Spring Boot & Tailwind CSS.</div>
+      <div class="flex space-x-5 text-slate-400">
+        <a href="/swagger-ui.html" target="_blank" class="text-brand-400 hover:text-brand-300 transition-colors">Swagger API Docs</a>
+        <a href="/h2-console" target="_blank" class="text-brand-400 hover:text-brand-300 transition-colors">H2 Database Console</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ======= MODAL: AUTHENTICATION ======= -->
+  <div id="authModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300">
+    <div class="glass-panel w-full max-w-md p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl relative animate-slide-up">
+      <button onclick="closeAuthModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-xl font-bold leading-none transition-colors">✕</button>
+
+      <div class="text-center mb-6">
+        <div class="w-14 h-14 rounded-2xl gradient-brand mx-auto flex items-center justify-center text-2xl mb-3">🚌</div>
+        <h3 class="text-xl font-extrabold text-white">Account Access</h3>
+        <p class="text-xs text-slate-400 mt-1">Sign in to book seats and manage your tickets</p>
+      </div>
+
+      <!-- Auth Tab Toggles -->
+      <div class="flex p-1 bg-slate-950 rounded-xl border border-slate-800 mb-6">
+        <button id="authLoginTabBtn" onclick="showAuthTab('login')" class="flex-1 py-2 rounded-lg text-xs font-bold bg-brand-600 text-white transition-all">Sign In</button>
+        <button id="authRegisterTabBtn" onclick="showAuthTab('register')" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition-all">Register</button>
+      </div>
+
+      <!-- Login Form -->
+      <div id="loginTabContent" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1.5">Email Address</label>
+          <input type="email" id="loginEmail" value="user@ticket.com" class="form-input">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1.5">Password</label>
+          <input type="password" id="loginPassword" value="User123!" class="form-input">
+        </div>
+        <button onclick="handleLogin()" class="w-full py-3 rounded-xl gradient-brand font-bold text-sm text-white shadow-lg shadow-brand-500/20 hover:scale-[1.02] active:scale-95 transition-all">
+          Sign In →
+        </button>
+        <div class="pt-3 border-t border-slate-800/60 space-y-2">
+          <p class="text-xs text-slate-500 text-center">Quick demo access:</p>
+          <div class="flex space-x-2">
+            <button onclick="fillCreds('user')" class="flex-1 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300 hover:border-brand-500 hover:text-white transition-all">
+              👤 Demo User
+            </button>
+            <button onclick="fillCreds('admin')" class="flex-1 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-300 hover:border-amber-500 hover:text-amber-400 transition-all">
+              ⚙️ Demo Admin
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Register Form -->
+      <div id="registerTabContent" class="space-y-3 hidden">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">First Name</label>
+            <input type="text" id="regFirstName" value="Sumon" class="form-input">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Last Name</label>
+            <input type="text" id="regLastName" value="Hossain" class="form-input">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1.5">Email Address</label>
+          <input type="email" id="regEmail" value="sumon@ticket.com" class="form-input">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Password</label>
+            <input type="password" id="regPassword" value="User123!" class="form-input">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Phone</label>
+            <input type="text" id="regPhone" value="+8801811223344" class="form-input">
+          </div>
+        </div>
+        <!-- NOTE: No role selection — users always register as USER for security -->
+        <p class="text-[11px] text-slate-500 flex items-center space-x-1">
+          <span>🔒</span><span>New accounts are registered as standard passenger accounts</span>
+        </p>
+        <button onclick="handleRegister()" class="w-full py-2.5 rounded-xl gradient-brand font-bold text-xs text-white shadow-lg shadow-brand-500/20 hover:scale-[1.02] active:scale-95 transition-all">Create Account →</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======= MODAL: BUS SEAT SELECTOR ======= -->
+  <div id="seatModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 p-4 overflow-y-auto">
+    <div class="glass-panel w-full max-w-2xl p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl relative my-8">
+      <button onclick="closeSeatModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-xl font-bold transition-colors">✕</button>
+
+      <div class="mb-6 pb-4 border-b border-slate-800">
+        <div class="flex items-center space-x-2 text-xs text-brand-400 font-bold uppercase tracking-wider mb-1">
+          <span>🎫 Interactive Seat Selector</span>
+          <span>•</span>
+          <span id="seatModalBusType">Scania AC</span>
+        </div>
+        <h3 id="seatModalTripTitle" class="text-xl font-extrabold text-white">Dhaka ➔ Chittagong</h3>
+        <div class="text-xs text-slate-400 mt-1 flex items-center space-x-3">
+          <span id="seatModalTime">08:00 AM Departure</span>
+          <span class="text-slate-700">•</span>
+          <span id="seatModalFare" class="text-emerald-400 font-bold">1,200 BDT per seat</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <!-- Seat Grid -->
+        <div class="md:col-span-7 bg-slate-950/80 p-5 rounded-2xl border border-slate-800">
+          <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800 text-xs font-bold text-slate-400">
+            <span>🚪 Door</span>
+            <span class="px-3 py-1 rounded-lg bg-slate-900 border border-slate-800">🛞 Driver Cabin</span>
+          </div>
+          <div id="busSeatGrid" class="grid grid-cols-5 gap-2 justify-items-center max-h-64 overflow-y-auto pr-1"></div>
+          <div class="flex items-center justify-around pt-5 mt-4 border-t border-slate-800 text-[11px] text-slate-400">
+            <div class="flex items-center space-x-1.5">
+              <span class="w-3.5 h-3.5 rounded bg-slate-800 border border-slate-700"></span><span>Available</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <span class="w-3.5 h-3.5 rounded bg-brand-600"></span><span>Selected</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <span class="w-3.5 h-3.5 rounded bg-rose-500/20 border border-rose-500/40"></span><span>Booked</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Booking Summary -->
+        <div class="md:col-span-5 flex flex-col justify-between space-y-4">
+          <div class="space-y-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
+            <h4 class="font-bold text-sm text-white pb-2 border-b border-slate-800">Booking Summary</h4>
+            <div class="space-y-2.5 text-xs">
+              <div class="flex justify-between text-slate-400">
+                <span>Selected Seat:</span>
+                <span id="selectedSeatNumber" class="font-bold text-brand-400 text-sm">None</span>
+              </div>
+              <div class="flex justify-between text-slate-400">
+                <span>Ticket Price:</span>
+                <span id="seatBaseFare" class="font-semibold text-slate-200">0 BDT</span>
+              </div>
+              <div class="flex justify-between text-slate-400">
+                <span>Service Fee & Tax:</span>
+                <span class="font-semibold text-slate-200">0 BDT</span>
+              </div>
+              <div class="pt-2 border-t border-slate-800 flex justify-between text-sm font-bold">
+                <span class="text-slate-300">Total Fare:</span>
+                <span id="seatTotalFare" class="text-emerald-400">0 BDT</span>
+              </div>
+            </div>
+          </div>
+
+          <button id="confirmBookingBtn" onclick="confirmSeatBooking()" disabled
+            class="w-full py-3.5 rounded-2xl gradient-brand font-bold text-sm text-white shadow-lg shadow-brand-500/30 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-95 transition-all duration-200">
+            Confirm & Reserve Seat 🎫
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= MODAL: E-TICKET / BOARDING PASS ======= -->
+  <div id="ticketModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 p-4">
+    <div class="glass-panel w-full max-w-xl p-6 rounded-3xl border border-slate-800 shadow-2xl relative space-y-5">
+      <button onclick="closeTicketModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white text-xl font-bold transition-colors">✕</button>
+
+      <div id="printableTicket" class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700/60 rounded-2xl p-6 shadow-xl space-y-5 relative overflow-hidden">
+        <!-- Decorative gradient -->
+        <div class="absolute top-0 right-0 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+
+        <!-- Header -->
+        <div class="flex justify-between items-start pb-4 border-b border-slate-800">
+          <div>
+            <div class="text-xs font-bold text-brand-400 tracking-wider uppercase">ENTERPRISE EXPRESS — BOARDING PASS</div>
+            <div id="tktOperatorName" class="text-lg font-extrabold text-white mt-1">Green Line Paribahan</div>
+          </div>
+          <span id="tktStatus" class="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold">CONFIRMED</span>
+        </div>
+
+        <!-- Route Display -->
+        <div class="flex items-center justify-between py-2">
+          <div class="text-center">
+            <div class="text-2xl font-black text-white" id="tktFromCity">DHK</div>
+            <div class="text-xs text-slate-400" id="tktFromFull">Dhaka</div>
+          </div>
+          <div class="flex flex-col items-center px-4 flex-grow">
+            <div class="text-xs text-slate-500">Direct</div>
+            <div class="w-full h-px bg-gradient-to-r from-transparent via-slate-600 to-transparent my-1.5 relative">
+              <div class="absolute right-0 -top-[5px] w-2.5 h-2.5 border-t-2 border-r-2 border-slate-500 rotate-45"></div>
+              <div class="absolute -top-[5px] left-1/2 -translate-x-1/2 text-lg">🚌</div>
+            </div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-black text-white" id="tktToCity">CTG</div>
+            <div class="text-xs text-slate-400" id="tktToFull">Chittagong</div>
+          </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="grid grid-cols-3 gap-4 text-xs pt-2 border-t border-slate-800/60">
+          <div>
+            <div class="text-slate-500 font-semibold uppercase mb-0.5">Passenger</div>
+            <div id="tktPassengerName" class="text-sm font-bold text-white">Rahim Uddin</div>
+          </div>
+          <div>
+            <div class="text-slate-500 font-semibold uppercase mb-0.5">Booking Ref</div>
+            <div id="tktRefId" class="text-sm font-mono font-bold text-brand-400">#BK-1002</div>
+          </div>
+          <div>
+            <div class="text-slate-500 font-semibold uppercase mb-0.5">Seat No.</div>
+            <div id="tktSeatNum" class="text-xl font-extrabold text-emerald-400">#5</div>
+          </div>
+          <div>
+            <div class="text-slate-500 font-semibold uppercase mb-0.5">Departure</div>
+            <div id="tktDepTime" class="text-sm font-bold text-slate-200">07:30 AM</div>
+          </div>
+          <div>
+            <div class="text-slate-500 font-semibold uppercase mb-0.5">Total Paid</div>
+            <div id="tktFare" class="text-sm font-bold text-slate-200">1,200 BDT</div>
+          </div>
+          <div>
+            <div class="text-slate-500 font-semibold uppercase mb-0.5">Class</div>
+            <div id="tktBusType" class="text-sm font-bold text-slate-200">AC Scania</div>
+          </div>
+        </div>
+
+        <!-- Barcode -->
+        <div class="pt-4 border-t border-dashed border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <div>Scan barcode at boarding gate</div>
+          <div class="font-mono tracking-widest text-slate-600">||| | |||| | ||| || ||||</div>
+        </div>
+      </div>
+
+      <div class="flex space-x-3">
+        <button onclick="window.print()" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white border border-slate-700 transition-all">
+          🖨️ Print / Save PDF
+        </button>
+        <button onclick="closeTicketModal()" class="flex-1 py-3 rounded-xl gradient-brand text-xs font-bold text-white hover:scale-[1.02] transition-all">
+          Close Preview ✓
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= APPLICATION JAVASCRIPT ======= -->
+  <script>
+    // ===================================================
+    // STATE STORE
+    // ===================================================
+    let activeToken = localStorage.getItem('jwt_token') || '';
+    let userEmail   = localStorage.getItem('jwt_email') || '';
+    let userRole    = localStorage.getItem('jwt_role') || '';
+    let currentSelectedTrip = null;
+    let selectedSeatNumber  = null;
+    let bookedSeatsList = [];
+
+    // Cached data for admin dropdowns
+    let cachedOperators = [];
+    let cachedBuses     = [];
+    let cachedRoutes    = [];
+
+    // ===================================================
+    // INIT
+    // ===================================================
+    document.addEventListener('DOMContentLoaded', () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      document.getElementById('searchDate').value = todayStr;
+      document.getElementById('tripDate') && (document.getElementById('tripDate').value = todayStr);
+
+      updateAuthDisplay();
+      loadBusesCatalog();
+      loadRoutesCatalog();
+      handleSearchTrips();
+    });
+
+    // ===================================================
+    // AUTHENTICATION
+    // ===================================================
+    function updateAuthDisplay() {
+      const statusDot     = document.getElementById('statusDot');
+      const statusText    = document.getElementById('authStatusText');
+      const authActionBtn = document.getElementById('authActionBtn');
+      const tokenDisplay  = document.getElementById('tokenDisplay');
+
+      if (activeToken) {
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]';
+        statusText.innerHTML = `Signed in as <b class="text-white">${userEmail}</b> <span class="ml-1 text-[10px] px-2 py-0.5 rounded-full ${userRole === 'ADMIN' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-accent-500/20 text-accent-400 border border-accent-500/40'}">${userRole}</span>`;
+        authActionBtn.textContent = 'Sign Out';
+        authActionBtn.onclick = logout;
+        if (tokenDisplay) tokenDisplay.textContent = activeToken;
+      } else {
+        statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#ef4444]';
+        statusText.textContent = 'Guest Session';
+        authActionBtn.textContent = 'Sign In / Register';
+        authActionBtn.onclick = openAuthModal;
+        if (tokenDisplay) tokenDisplay.textContent = 'No active session token. Please sign in.';
+      }
+
+      updateNavVisibility();
+    }
+
+    /**
+     * RBAC: Show/hide nav tabs and admin sections based on current role.
+     * ADMIN tab is ONLY shown to ADMIN users.
+     * Profile tab is only shown when logged in.
+     */
+    function updateNavVisibility() {
+      const profileBtn = document.getElementById('navProfileBtn');
+      const adminBtn   = document.getElementById('navAdminBtn');
+
+      if (activeToken) {
+        profileBtn.classList.remove('hidden');
+        profileBtn.classList.add('flex');
+      } else {
+        profileBtn.classList.add('hidden');
+        profileBtn.classList.remove('flex');
+      }
+
+      if (activeToken && userRole === 'ADMIN') {
+        adminBtn.classList.remove('hidden');
+        adminBtn.classList.add('flex');
+        // Style admin tab distinctively
+        adminBtn.className = 'tab-btn flex px-4 py-2.5 rounded-xl text-sm font-semibold items-center space-x-2 whitespace-nowrap text-amber-400 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200';
+      } else {
+        adminBtn.classList.add('hidden');
+        adminBtn.classList.remove('flex');
+        adminBtn.className = 'tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold items-center space-x-2 whitespace-nowrap transition-all duration-200 hidden';
+      }
+    }
+
+    function openAuthModal() {
+      document.getElementById('authModal').classList.remove('opacity-0', 'pointer-events-none');
+    }
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function showAuthTab(tab) {
+      document.getElementById('loginTabContent').classList.toggle('hidden', tab !== 'login');
+      document.getElementById('registerTabContent').classList.toggle('hidden', tab !== 'register');
+      document.getElementById('authLoginTabBtn').className  = `flex-1 py-2 rounded-lg text-xs font-bold transition-all ${tab === 'login'    ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-white'}`;
+      document.getElementById('authRegisterTabBtn').className = `flex-1 py-2 rounded-lg text-xs font-bold transition-all ${tab === 'register' ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-white'}`;
+    }
+
+    function fillCreds(type) {
+      if (type === 'admin') {
+        document.getElementById('loginEmail').value    = 'admin@ticket.com';
+        document.getElementById('loginPassword').value = 'Admin123!';
+      } else {
+        document.getElementById('loginEmail').value    = 'user@ticket.com';
+        document.getElementById('loginPassword').value = 'User123!';
+      }
+    }
+
+    async function handleLogin() {
+      const email    = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      if (!email || !password) return showNotification('Please enter email and password.', 'error');
+
+      try {
+        showNotification('Signing in...', 'info');
+        const res  = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.token) {
+          activeToken = data.token;
+          userEmail   = data.email || email;
+          userRole    = (data.role || 'USER').toUpperCase().replace('ROLE_', '');
+          localStorage.setItem('jwt_token', activeToken);
+          localStorage.setItem('jwt_email', userEmail);
+          localStorage.setItem('jwt_role',  userRole);
+          updateAuthDisplay();
+          closeAuthModal();
+          showNotification(`Welcome back, ${userEmail.split('@')[0]}! Signed in as ${userRole}.`, 'success');
+          if (userRole === 'ADMIN') {
+            loadAdminStats();
+          }
+        } else {
+          showNotification(data.message || 'Invalid credentials. Please try again.', 'error');
+        }
+      } catch (err) {
+        showNotification('Connection error: ' + err.message, 'error');
+      }
+    }
+
+    async function handleRegister() {
+      const body = {
+        firstName: document.getElementById('regFirstName').value.trim(),
+        lastName:  document.getElementById('regLastName').value.trim(),
+        email:     document.getElementById('regEmail').value.trim(),
+        password:  document.getElementById('regPassword').value,
+        phone:     document.getElementById('regPhone').value.trim(),
+        role:      'USER'  // Always register as USER — admin accounts must be provisioned by existing admins
+      };
+      if (!body.firstName || !body.email || !body.password) {
+        return showNotification('Please fill all required fields.', 'error');
+      }
+      try {
+        const res = await fetch('/api/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const text = await res.text();
+        if (res.ok) {
+          showNotification('Account created! Signing you in...', 'success');
+          document.getElementById('loginEmail').value    = body.email;
+          document.getElementById('loginPassword').value = body.password;
+          showAuthTab('login');
+          setTimeout(handleLogin, 500);
+        } else {
+          showNotification('Registration failed: ' + text, 'error');
+        }
+      } catch (err) {
+        showNotification('Registration error: ' + err.message, 'error');
+      }
+    }
+
+    function logout() {
+      activeToken = ''; userEmail = ''; userRole = '';
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('jwt_email');
+      localStorage.removeItem('jwt_role');
+      updateAuthDisplay();
+      // If currently on a protected tab, redirect to search
+      const activeTabContent = document.querySelector('.tab-content:not(.hidden)');
+      if (activeTabContent && ['profileTab', 'adminTab'].includes(activeTabContent.id)) {
+        switchMainTab('searchTab', document.getElementById('navSearchBtn'));
+      }
+      showNotification('Signed out successfully.', 'info');
+    }
+
+    // ===================================================
+    // NAV & TAB MANAGEMENT
+    // ===================================================
+    function switchMainTab(tabId, btn) {
+      // Guard: Admin tab requires ADMIN role
+      if (tabId === 'adminTab' && userRole !== 'ADMIN') {
+        // Switch to admin tab UI but show access-denied content
+        _doSwitchTab(tabId, btn);
+        document.getElementById('adminAccessDenied').classList.remove('hidden');
+        document.getElementById('adminPortalContent').classList.add('hidden');
+        return;
+      }
+
+      // Guard: Profile tab requires login
+      if (tabId === 'profileTab' && !activeToken) {
+        openAuthModal();
+        showNotification('Please sign in to view your profile.', 'info');
+        return;
+      }
+
+      _doSwitchTab(tabId, btn);
+
+      // Side effects on tab switch
+      if (tabId === 'bookingsTab')  { loadMyBookings(); }
+      if (tabId === 'fleetTab')     { loadBusesCatalog(); loadRoutesCatalog(); }
+      if (tabId === 'profileTab')   { loadUserProfile(); loadProfileBookings(); }
+      if (tabId === 'adminTab')     {
+        document.getElementById('adminAccessDenied').classList.add('hidden');
+        document.getElementById('adminPortalContent').classList.remove('hidden');
+        loadAdminPortalData();
+      }
+    }
+
+    function _doSwitchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        // Reset all tab buttons to inactive
+        if (el.id === 'navAdminBtn') {
+          el.className = 'tab-btn flex px-4 py-2.5 rounded-xl text-sm font-semibold items-center space-x-2 whitespace-nowrap text-amber-400 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/40 transition-all duration-200';
+        } else {
+          el.className = 'tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-2 whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all duration-200';
+          // Restore visibility for auth-gated buttons
+          if (el.id === 'navProfileBtn' && activeToken) el.classList.add('flex');
+          if (el.id === 'navAdminBtn' && activeToken && userRole === 'ADMIN') el.classList.add('flex');
+        }
+      });
+
+      document.getElementById(tabId).classList.remove('hidden');
+
+      if (btn) {
+        if (btn.id === 'navAdminBtn') {
+          btn.className = 'tab-btn flex px-4 py-2.5 rounded-xl text-sm font-semibold items-center space-x-2 whitespace-nowrap tab-active text-white shadow-md transition-all duration-200';
+        } else {
+          btn.className = 'tab-btn tab-active px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center space-x-2 whitespace-nowrap text-white shadow-md transition-all duration-200';
+        }
+      }
+    }
+
+    function setSearchRoute(src, dest) {
+      document.getElementById('searchSource').value      = src;
+      document.getElementById('searchDestination').value = dest;
+      handleSearchTrips();
+    }
+
+    // ===================================================
+    // TAB 1: TRIP SEARCH
+    // ===================================================
+    async function handleSearchTrips() {
+      const source      = document.getElementById('searchSource').value;
+      const destination = document.getElementById('searchDestination').value;
+      const date        = document.getElementById('searchDate').value;
+      const container   = document.getElementById('tripResultsContainer');
+      const countBadge  = document.getElementById('tripCountBadge');
+
+      container.innerHTML = `<div class="col-span-full py-16 text-center text-slate-400">
+        <div class="text-4xl mb-3">⏳</div><p>Searching scheduled trips...</p>
+      </div>`;
+
+      try {
+        const url = `/api/v1/trips/search?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${date}`;
+        const res = await fetch(url);
+        const trips = await res.json();
+
+        if (countBadge) countBadge.textContent = `${Array.isArray(trips) ? trips.length : 0} Found`;
+
+        if (!res.ok || !Array.isArray(trips) || trips.length === 0) {
+          container.innerHTML = `
+            <div class="col-span-full py-16 text-center glass-panel rounded-3xl border border-slate-800">
+              <div class="text-5xl mb-4">🚌</div>
+              <h3 class="text-lg font-bold text-slate-300">No Trips Found</h3>
+              <p class="text-sm text-slate-500 mt-2">No scheduled buses available for <strong class="text-white">${source} ➔ ${destination}</strong> on ${date || 'any date'}.</p>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = trips.map(t => {
+          const operatorName = t.bus?.operator?.name || 'Express Lines';
+          const busType      = t.bus?.busType || 'AC Business Class';
+          const busNum       = t.bus?.busNumber || 'BUS-101';
+          const depTime      = t.departureTime || '08:00';
+          const arrTime      = t.arrivalTime || '14:00';
+          const srcCity      = t.route?.source || source;
+          const destCity     = t.route?.destination || destination;
+          const seatsLeft    = t.availableSeats;
+          const fare         = t.fare || 1200;
+          const seatColor    = seatsLeft > 10 ? 'text-emerald-400' : seatsLeft > 3 ? 'text-amber-400' : 'text-rose-400';
+
+          return `
+            <div class="trip-card glass-panel p-6 rounded-3xl border border-slate-800/80 flex flex-col justify-between space-y-5">
+              <div>
+                <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                  <div>
+                    <h4 class="font-extrabold text-white">${operatorName}</h4>
+                    <span class="text-xs text-slate-500 font-mono">${busNum}</span>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-lg bg-brand-500/10 text-brand-400 border border-brand-500/20 text-xs font-bold">${busType}</span>
+                </div>
+
+                <div class="flex items-center justify-between py-5">
+                  <div class="text-center">
+                    <div class="text-xl font-black text-accent-400">${depTime}</div>
+                    <div class="text-xs text-slate-400 font-medium mt-0.5">${srcCity}</div>
+                  </div>
+                  <div class="flex flex-col items-center px-4 flex-grow">
+                    <div class="text-xs text-slate-600 font-mono mb-1">Direct</div>
+                    <div class="w-full h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent relative">
+                      <div class="absolute right-0 -top-[4px] w-2 h-2 border-t border-r border-slate-600 rotate-45"></div>
+                    </div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-xl font-black text-accent-400">${arrTime}</div>
+                    <div class="text-xs text-slate-400 font-medium mt-0.5">${destCity}</div>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/40">
+                  <span>Seats Remaining:</span>
+                  <span class="font-bold ${seatColor}">${seatsLeft} Available</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+                <div>
+                  <div class="text-[10px] text-slate-500 uppercase font-semibold">Fare per Seat</div>
+                  <div class="text-2xl font-extrabold text-white">${fare.toLocaleString()} <span class="text-xs font-normal text-slate-400">BDT</span></div>
+                </div>
+                <button onclick="openSeatModal(${t.id}, ${fare}, '${operatorName.replace(/'/g,"\\'")}', '${busType}', '${srcCity} ➔ ${destCity}', '${depTime}')"
+                  class="px-5 py-2.5 rounded-xl gradient-brand font-bold text-xs text-white shadow-md shadow-brand-500/25 hover:scale-105 active:scale-95 transition-all">
+                  Select Seat 🎫
+                </button>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="col-span-full py-16 text-center text-rose-400">⚠️ Error fetching trips: ${err.message}</div>`;
+      }
+    }
+
+    // ===================================================
+    // SEAT SELECTOR MODAL
+    // ===================================================
+    async function openSeatModal(tripId, fare, operatorName, busType, tripTitle, depTime) {
+      if (!activeToken) {
+        openAuthModal();
+        showNotification('Please sign in to select seats.', 'info');
+        return;
+      }
+
+      currentSelectedTrip = { tripId, fare, operatorName, busType, tripTitle, depTime };
+      selectedSeatNumber  = null;
+
+      document.getElementById('seatModalBusType').textContent   = busType;
+      document.getElementById('seatModalTripTitle').textContent = tripTitle;
+      document.getElementById('seatModalTime').textContent      = `${depTime} Departure`;
+      document.getElementById('seatModalFare').textContent      = `${fare.toLocaleString()} BDT per seat`;
+      document.getElementById('selectedSeatNumber').textContent = 'None';
+      document.getElementById('seatBaseFare').textContent       = '0 BDT';
+      document.getElementById('seatTotalFare').textContent      = '0 BDT';
+      document.getElementById('confirmBookingBtn').disabled     = true;
+
+      try {
+        const res = await fetch(`/api/v1/bookings/trip/${tripId}/booked-seats`);
+        bookedSeatsList = res.ok ? await res.json() : [];
+      } catch (e) {
+        bookedSeatsList = [];
+      }
+
+      renderBusSeatGrid(40);
+      document.getElementById('seatModal').classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeSeatModal() {
+      document.getElementById('seatModal').classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function renderBusSeatGrid(totalSeats = 40) {
+      const grid = document.getElementById('busSeatGrid');
+      grid.innerHTML = '';
+      const rows = Math.ceil(totalSeats / 4);
+
+      for (let r = 0; r < rows; r++) {
+        for (let col = 1; col <= 5; col++) {
+          if (col === 3) {
+            const aisle = document.createElement('div');
+            aisle.className = 'w-4 h-10';
+            grid.appendChild(aisle);
+            continue;
+          }
+          const seatIndex = r * 4 + (col > 3 ? col - 1 : col);
+          if (seatIndex > totalSeats) break;
+
+          const isBooked = bookedSeatsList.includes(seatIndex);
+          const btn = document.createElement('button');
+          if (isBooked) {
+            btn.className = 'seat-btn seat-occupied';
+            btn.disabled  = true;
+            btn.title     = `Seat #${seatIndex} — Booked`;
+            btn.textContent = `✕${seatIndex}`;
+          } else {
+            btn.className   = 'seat-btn seat-available';
+            btn.textContent = seatIndex;
+            btn.onclick     = () => selectSeat(seatIndex, btn);
+          }
+          grid.appendChild(btn);
+        }
+      }
+    }
+
+    function selectSeat(seatNum, btnEl) {
+      document.querySelectorAll('#busSeatGrid .seat-btn').forEach(b => {
+        if (!b.classList.contains('seat-occupied')) b.className = 'seat-btn seat-available';
+      });
+      selectedSeatNumber = seatNum;
+      btnEl.className    = 'seat-btn seat-selected';
+
+      const fare = currentSelectedTrip.fare;
+      document.getElementById('selectedSeatNumber').textContent = `Seat #${seatNum}`;
+      document.getElementById('seatBaseFare').textContent       = `${fare.toLocaleString()} BDT`;
+      document.getElementById('seatTotalFare').textContent      = `${fare.toLocaleString()} BDT`;
+      document.getElementById('confirmBookingBtn').disabled     = false;
+    }
+
+    async function confirmSeatBooking() {
+      if (!selectedSeatNumber || !currentSelectedTrip) return;
+      document.getElementById('confirmBookingBtn').disabled   = true;
+      document.getElementById('confirmBookingBtn').textContent = 'Processing...';
+
+      try {
+        const res = await fetch('/api/v1/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken}` },
+          body: JSON.stringify({
+            trip: { id: currentSelectedTrip.tripId },
+            seatNumber: selectedSeatNumber,
+            totalFare: currentSelectedTrip.fare,
+            status: 'CONFIRMED'
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          closeSeatModal();
+          showNotification('🎉 Ticket booked successfully!', 'success');
+          openTicketModal(data);
+          handleSearchTrips();
+        } else {
+          showNotification('Booking failed: ' + (data.message || JSON.stringify(data)), 'error');
+          document.getElementById('confirmBookingBtn').disabled   = false;
+          document.getElementById('confirmBookingBtn').textContent = 'Confirm & Reserve Seat 🎫';
+        }
+      } catch (err) {
+        showNotification('Booking error: ' + err.message, 'error');
+        document.getElementById('confirmBookingBtn').disabled   = false;
+        document.getElementById('confirmBookingBtn').textContent = 'Confirm & Reserve Seat 🎫';
+      }
+    }
+
+    // ===================================================
+    // E-TICKET MODAL
+    // ===================================================
+    function openTicketModal(bookingData) {
+      const trip  = bookingData.trip;
+      const route = trip?.route;
+
+      const fromCity = route?.source || (currentSelectedTrip?.tripTitle?.split(' ➔ ')[0]) || 'DHK';
+      const toCity   = route?.destination || (currentSelectedTrip?.tripTitle?.split(' ➔ ')[1]) || 'CTG';
+
+      document.getElementById('tktOperatorName').textContent  = currentSelectedTrip?.operatorName || 'Enterprise Express';
+      document.getElementById('tktPassengerName').textContent = userEmail;
+      document.getElementById('tktRefId').textContent         = `#BK-${bookingData.id}`;
+      document.getElementById('tktFromCity').textContent      = fromCity.substring(0, 3).toUpperCase();
+      document.getElementById('tktFromFull').textContent      = fromCity;
+      document.getElementById('tktToCity').textContent        = toCity.substring(0, 3).toUpperCase();
+      document.getElementById('tktToFull').textContent        = toCity;
+      document.getElementById('tktDepTime').textContent       = currentSelectedTrip?.depTime || '—';
+      document.getElementById('tktSeatNum').textContent       = `#${bookingData.seatNumber}`;
+      document.getElementById('tktFare').textContent          = `${(bookingData.totalFare || currentSelectedTrip?.fare || 0).toLocaleString()} BDT`;
+      document.getElementById('tktBusType').textContent       = currentSelectedTrip?.busType || 'AC Class';
+      document.getElementById('tktStatus').textContent        = bookingData.status || 'CONFIRMED';
+
+      document.getElementById('ticketModal').classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function closeTicketModal() {
+      document.getElementById('ticketModal').classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    // ===================================================
+    // TAB 2: MY BOOKINGS
+    // ===================================================
+    async function loadMyBookings() {
+      const tbody = document.getElementById('myBookingsTableBody');
+      if (!activeToken) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-14 text-center">
+          <div class="flex flex-col items-center space-y-3">
+            <span class="text-4xl">🔐</span>
+            <span class="text-slate-500 text-sm">Please sign in to view your tickets.</span>
+            <button onclick="openAuthModal()" class="px-4 py-2 rounded-xl gradient-brand text-xs font-bold text-white">Sign In</button>
+          </div>
+        </td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-slate-500">Loading your bookings...</td></tr>`;
+
+      try {
+        const res  = await fetch('/api/v1/bookings/my-bookings', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        const data = await res.json();
+
+        if (!res.ok || !Array.isArray(data) || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-14 text-center">
+            <div class="flex flex-col items-center space-y-3">
+              <span class="text-4xl">🎫</span>
+              <span class="text-slate-400 font-semibold">No Bookings Found</span>
+              <span class="text-slate-500 text-sm">You haven't booked any tickets yet.</span>
+              <button onclick="switchMainTab('searchTab', document.getElementById('navSearchBtn'))" class="px-4 py-2 rounded-xl gradient-brand text-xs font-bold text-white">Find Trips</button>
+            </div>
+          </td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = data.map(b => {
+          const routeText = b.trip?.route ? `${b.trip.route.source} ➔ ${b.trip.route.destination}` : 'Scheduled Trip';
+          const statusClass = (b.status === 'CONFIRMED' || b.status === 'BOOKED')
+            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+            : 'bg-rose-500/15 text-rose-400 border border-rose-500/25';
+          return `
+            <tr class="table-row-hover transition-colors">
+              <td class="px-6 py-4 font-mono font-bold text-brand-400">#BK-${b.id}</td>
+              <td class="px-6 py-4">
+                <div class="font-bold text-white">${routeText}</div>
+                <div class="text-xs text-slate-500">Trip #${b.trip?.id || 'N/A'}</div>
+              </td>
+              <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-md bg-slate-800 font-bold text-emerald-400">Seat #${b.seatNumber}</span></td>
+              <td class="px-6 py-4 font-bold text-white">${(b.totalFare || 0).toLocaleString()} BDT</td>
+              <td class="px-6 py-4"><span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold ${statusClass}">${b.status || 'CONFIRMED'}</span></td>
+              <td class="px-6 py-4 text-right space-x-2">
+                <button onclick='openTicketModal(${JSON.stringify(b)})' class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-all">
+                  View Pass
+                </button>
+                <button onclick="cancelBooking(${b.id})" class="px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-xs font-bold text-rose-400 border border-rose-500/25 transition-all">
+                  Cancel
+                </button>
+              </td>
+            </tr>`;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-rose-400">Error loading bookings: ${err.message}</td></tr>`;
+      }
+    }
+
+    async function cancelBooking(id) {
+      if (!confirm(`Cancel booking #BK-${id}? This action cannot be undone.`)) return;
+      try {
+        const res = await fetch(`/api/v1/bookings/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${activeToken}` } });
+        if (res.ok) {
+          showNotification('Booking cancelled successfully.', 'success');
+          loadMyBookings();
+          if (!document.getElementById('profileTab').classList.contains('hidden')) loadProfileBookings();
+        } else {
+          showNotification('Failed to cancel booking. Please try again.', 'error');
+        }
+      } catch (err) {
+        showNotification('Error: ' + err.message, 'error');
+      }
+    }
+
+    // ===================================================
+    // TAB 3: FLEET & ROUTES CATALOG (PUBLIC)
+    // ===================================================
+    async function loadBusesCatalog() {
+      const tbody = document.getElementById('busesTableBody');
+      try {
+        const res  = await fetch('/api/v1/buses');
+        const data = await res.json();
+        if (res.ok && Array.isArray(data)) {
+          cachedBuses = data;
+          updateTripBusDropdown();
+          if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">No buses in fleet.</td></tr>`;
+            return;
+          }
+          tbody.innerHTML = data.map(b => `
+            <tr class="table-row-hover transition-colors">
+              <td class="px-4 py-3 font-mono font-bold text-white">${b.busNumber}</td>
+              <td class="px-4 py-3 text-slate-300">${b.operator?.name || 'N/A'}</td>
+              <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-md bg-brand-500/15 text-brand-400 border border-brand-500/20 text-xs">${b.busType}</span></td>
+              <td class="px-4 py-3 font-bold text-emerald-400">${b.totalSeats} seats</td>
+            </tr>`).join('');
+        } else {
+          tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">Unable to load fleet data.</td></tr>`;
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-rose-400">${err.message}</td></tr>`;
+      }
+    }
+
+    async function loadRoutesCatalog() {
+      const tbody = document.getElementById('routesTableBody');
+      try {
+        const res  = await fetch('/api/v1/routes');
+        const data = await res.json();
+        if (res.ok && Array.isArray(data)) {
+          cachedRoutes = data;
+          updateTripRouteDropdown();
+          if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">No routes configured.</td></tr>`;
+            return;
+          }
+          tbody.innerHTML = data.map(r => `
+            <tr class="table-row-hover transition-colors">
+              <td class="px-4 py-3 font-bold text-white">${r.source}</td>
+              <td class="px-4 py-3 font-bold text-white">${r.destination}</td>
+              <td class="px-4 py-3 text-slate-300">${r.distance} km</td>
+              <td class="px-4 py-3 font-mono text-slate-300">${r.estimatedDuration} hrs</td>
+            </tr>`).join('');
+        } else {
+          tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">Unable to load routes.</td></tr>`;
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-rose-400">${err.message}</td></tr>`;
+      }
+    }
+
+    // ===================================================
+    // TAB 4: USER PROFILE
+    // ===================================================
+    async function loadUserProfile() {
+      if (!activeToken) return;
+      try {
+        const res  = await fetch('/api/v1/users/me', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        const user = await res.json();
+
+        if (res.ok) {
+          const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || userEmail;
+          document.getElementById('profileFullName').textContent = fullName;
+          document.getElementById('profileEmail').textContent    = user.email || userEmail;
+          document.getElementById('profilePhone').textContent    = user.phone || '—';
+          document.getElementById('profileId').textContent       = `#USR-${user.id}`;
+
+          const isAdmin = (user.role || userRole) === 'ADMIN';
+          const badge   = document.getElementById('profileRoleBadge');
+          badge.textContent = isAdmin ? 'ADMIN' : 'PASSENGER';
+          badge.className   = `inline-flex px-3 py-1 rounded-full text-xs font-bold border ${isAdmin ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-accent-500/15 text-accent-400 border-accent-500/30'}`;
+
+          // Set avatar initial
+          const initial = (user.firstName || userEmail)[0]?.toUpperCase() || '?';
+          document.getElementById('profileAvatar').textContent = initial;
+        }
+      } catch (e) {}
+    }
+
+    async function loadProfileBookings() {
+      const tbody = document.getElementById('profileBookingsBody');
+      if (!activeToken) return;
+      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Loading...</td></tr>`;
+      try {
+        const res  = await fetch('/api/v1/bookings/my-bookings', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data) && data.length > 0) {
+          tbody.innerHTML = data.map(b => {
+            const routeText   = b.trip?.route ? `${b.trip.route.source} ➔ ${b.trip.route.destination}` : `Trip #${b.trip?.id}`;
+            const statusClass = (b.status === 'CONFIRMED' || b.status === 'BOOKED')
+              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+              : 'bg-rose-500/15 text-rose-400 border border-rose-500/25';
+            return `<tr class="table-row-hover transition-colors">
+              <td class="px-4 py-3 font-mono text-brand-400 font-bold">#BK-${b.id}</td>
+              <td class="px-4 py-3 text-slate-200">${routeText}</td>
+              <td class="px-4 py-3 font-bold text-emerald-400">Seat #${b.seatNumber}</td>
+              <td class="px-4 py-3 font-bold text-white">${(b.totalFare || 0).toLocaleString()} BDT</td>
+              <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${statusClass}">${b.status || 'CONFIRMED'}</span></td>
+              <td class="px-4 py-3 text-right space-x-2">
+                <button onclick='openTicketModal(${JSON.stringify(b)})' class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 transition-all">View</button>
+                <button onclick="cancelBooking(${b.id})" class="px-2.5 py-1 rounded-lg bg-rose-500/15 text-xs text-rose-400 border border-rose-500/25 transition-all">Cancel</button>
+              </td>
+            </tr>`;
+          }).join('');
+        } else {
+          tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No bookings found.</td></tr>`;
+        }
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-rose-400">${e.message}</td></tr>`;
+      }
+    }
+
+    // ===================================================
+    // TAB 5: ADMIN PORTAL
+    // ===================================================
+    function switchAdminSection(sectionId, btn) {
+      document.querySelectorAll('.admin-section').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.admin-subtab').forEach(el => {
+        el.className = 'admin-subtab whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:bg-slate-800 transition-all';
+      });
+      document.getElementById(sectionId).classList.remove('hidden');
+      btn.className = 'admin-subtab whitespace-nowrap px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white';
+
+      if (sectionId === 'adminOpsSection')      loadAdminOperators();
+      if (sectionId === 'adminBusesSection')    loadAdminBuses();
+      if (sectionId === 'adminRoutesSection')   loadAdminRoutes();
+      if (sectionId === 'adminTripsSection')    loadAdminTrips();
+      if (sectionId === 'adminBookingsSection') loadAdminAllBookings();
+    }
+
+    function loadAdminPortalData() {
+      if (userRole !== 'ADMIN') return;
+      loadAdminStats();
+      loadAdminOperators();
+      loadAdminBuses();
+      loadAdminRoutes();
+      loadAdminTrips();
+    }
+
+    // Admin Stats Dashboard
+    async function loadAdminStats() {
+      const grid = document.getElementById('adminStatsGrid');
+      if (!grid) return;
+
+      grid.innerHTML = `<div class="col-span-full py-4 text-center text-slate-500 text-xs">Loading stats...</div>`;
+
+      try {
+        const res  = await fetch('/api/v1/admin/stats', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        if (!res.ok) { grid.innerHTML = ''; return; }
+        const s = await res.json();
+
+        const stats = [
+          { label: 'Total Bookings',  value: s.totalBookings,  sub: `${s.activeBookings} active`,    icon: '🎫', color: 'from-brand-600/20 to-brand-500/10', border: 'border-brand-500/20', text: 'text-brand-400' },
+          { label: 'Total Revenue',   value: `৳${Number(s.totalRevenue).toLocaleString()}`, sub: 'BDT Collected', icon: '💰', color: 'from-emerald-600/20 to-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400' },
+          { label: 'Registered Users',value: s.totalUsers,     sub: 'All accounts',          icon: '👤', color: 'from-accent-600/20 to-accent-500/10', border: 'border-accent-500/20', text: 'text-accent-400' },
+          { label: 'Fleet Buses',     value: s.totalBuses,     sub: `${s.totalOperators} operators`, icon: '🚌', color: 'from-purple-600/20 to-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400' },
+          { label: 'Active Trips',    value: s.totalTrips,     sub: `on ${s.totalRoutes} routes`,    icon: '📍', color: 'from-amber-600/20 to-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400' },
+        ];
+
+        grid.innerHTML = stats.map(st => `
+          <div class="stat-card glass-panel bg-gradient-to-br ${st.color} p-5 rounded-2xl border ${st.border} space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">${st.icon}</span>
+              <span class="text-xs text-slate-500">${st.sub}</span>
+            </div>
+            <div class="text-2xl font-extrabold ${st.text}">${st.value}</div>
+            <div class="text-xs text-slate-400 font-medium">${st.label}</div>
+          </div>`).join('');
+      } catch (e) {
+        grid.innerHTML = '';
+      }
+    }
+
+    // Admin Operators
+    async function loadAdminOperators() {
+      const tbody = document.getElementById('adminOpsTableBody');
+      try {
+        const res  = await fetch('/api/v1/operators', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data)) {
+          cachedOperators = data;
+          updateBusOperatorDropdown();
+          tbody.innerHTML = data.length === 0
+            ? `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">No operators registered.</td></tr>`
+            : data.map(o => `
+              <tr class="table-row-hover transition-colors">
+                <td class="px-4 py-3 font-bold text-white">${o.name}</td>
+                <td class="px-4 py-3"><div class="text-slate-300">${o.email}</div><div class="text-[11px] text-slate-500">${o.phone}</div></td>
+                <td class="px-4 py-3 font-mono text-slate-300">${o.licenseNumber || 'N/A'}</td>
+                <td class="px-4 py-3 text-right">
+                  <button onclick="deleteOperator(${o.id})" class="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/25 text-xs font-bold hover:bg-rose-500/25 transition-all">Delete</button>
+                </td>
+              </tr>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    async function handleCreateOperator() {
+      if (!activeToken || userRole !== 'ADMIN') return showNotification('ADMIN role required.', 'error');
+      const body = {
+        name:          document.getElementById('opName').value.trim(),
+        email:         document.getElementById('opEmail').value.trim(),
+        phone:         document.getElementById('opPhone').value.trim(),
+        address:       document.getElementById('opAddress').value.trim(),
+        licenseNumber: document.getElementById('opLicense').value.trim(),
+        active:        true
+      };
+      if (!body.name || !body.email || !body.phone) return showNotification('Please fill required fields.', 'error');
+      try {
+        const res = await fetch('/api/v1/operators', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken}` },
+          body: JSON.stringify(body)
+        });
+        if (res.ok) { showNotification('Operator registered successfully!', 'success'); loadAdminOperators(); loadAdminStats(); }
+        else showNotification('Failed to create operator.', 'error');
+      } catch (err) { showNotification(err.message, 'error'); }
+    }
+
+    async function deleteOperator(id) {
+      if (!confirm(`Delete operator #${id}? This will remove all associated data.`)) return;
+      try {
+        const res = await fetch(`/api/v1/operators/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${activeToken}` } });
+        if (res.ok) { showNotification('Operator deleted.', 'success'); loadAdminOperators(); loadAdminStats(); }
+        else showNotification('Failed to delete operator.', 'error');
+      } catch (e) {}
+    }
+
+    // Admin Buses
+    function updateBusOperatorDropdown() {
+      const sel = document.getElementById('busOperatorSelect');
+      if (!sel) return;
+      sel.innerHTML = cachedOperators.length === 0
+        ? `<option disabled value="">No operators available — create one first</option>`
+        : cachedOperators.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+    }
+
+    async function loadAdminBuses() {
+      const tbody = document.getElementById('adminBusesTableBody');
+      try {
+        const res  = await fetch('/api/v1/buses', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data)) {
+          cachedBuses = data;
+          updateTripBusDropdown();
+          tbody.innerHTML = data.length === 0
+            ? `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No buses in fleet.</td></tr>`
+            : data.map(b => `
+              <tr class="table-row-hover transition-colors">
+                <td class="px-4 py-3 font-mono font-bold text-white">${b.busNumber}</td>
+                <td class="px-4 py-3 text-slate-300 text-xs">${b.registrationNumber}</td>
+                <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-md bg-brand-500/15 text-brand-400 border border-brand-500/20 text-xs">${b.busType}</span></td>
+                <td class="px-4 py-3 font-bold text-emerald-400">${b.totalSeats}</td>
+                <td class="px-4 py-3 text-right">
+                  <button onclick="deleteBus(${b.id})" class="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/25 text-xs font-bold hover:bg-rose-500/25 transition-all">Delete</button>
+                </td>
+              </tr>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    async function handleCreateBus() {
+      if (!activeToken || userRole !== 'ADMIN') return showNotification('ADMIN role required.', 'error');
+      const opId = parseInt(document.getElementById('busOperatorSelect').value);
+      if (!opId) return showNotification('Please select an operator.', 'error');
+      const body = {
+        busNumber:          document.getElementById('busNum').value.trim(),
+        registrationNumber: document.getElementById('busReg').value.trim(),
+        busType:            document.getElementById('busType').value,
+        totalSeats:         parseInt(document.getElementById('busSeats').value),
+        operator:           { id: opId }
+      };
+      if (!body.busNumber || !body.registrationNumber) return showNotification('Please fill required fields.', 'error');
+      try {
+        const res = await fetch('/api/v1/buses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken}` },
+          body: JSON.stringify(body)
+        });
+        if (res.ok) { showNotification('Bus added to fleet!', 'success'); loadAdminBuses(); loadBusesCatalog(); loadAdminStats(); }
+        else showNotification('Failed to add bus.', 'error');
+      } catch (err) { showNotification(err.message, 'error'); }
+    }
+
+    async function deleteBus(id) {
+      if (!confirm(`Remove bus #${id} from fleet?`)) return;
+      try {
+        const res = await fetch(`/api/v1/buses/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${activeToken}` } });
+        if (res.ok) { showNotification('Bus removed from fleet.', 'success'); loadAdminBuses(); loadBusesCatalog(); loadAdminStats(); }
+      } catch (e) {}
+    }
+
+    // Admin Routes
+    async function loadAdminRoutes() {
+      const tbody = document.getElementById('adminRoutesTableBody');
+      try {
+        const res  = await fetch('/api/v1/routes', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data)) {
+          cachedRoutes = data;
+          updateTripRouteDropdown();
+          tbody.innerHTML = data.length === 0
+            ? `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">No routes configured.</td></tr>`
+            : data.map(r => `
+              <tr class="table-row-hover transition-colors">
+                <td class="px-4 py-3 font-bold text-white">${r.source}</td>
+                <td class="px-4 py-3 font-bold text-white">${r.destination}</td>
+                <td class="px-4 py-3 text-slate-300">${r.distance} km</td>
+                <td class="px-4 py-3 text-slate-300">${r.estimatedDuration} hrs</td>
+                <td class="px-4 py-3 text-right">
+                  <button onclick="deleteRoute(${r.id})" class="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/25 text-xs font-bold hover:bg-rose-500/25 transition-all">Delete</button>
+                </td>
+              </tr>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    async function handleCreateRoute() {
+      if (!activeToken || userRole !== 'ADMIN') return showNotification('ADMIN role required.', 'error');
+      const body = {
+        source:            document.getElementById('routeSource').value.trim(),
+        destination:       document.getElementById('routeDest').value.trim(),
+        distance:          parseFloat(document.getElementById('routeDistance').value),
+        estimatedDuration: parseInt(document.getElementById('routeDuration').value)
+      };
+      if (!body.source || !body.destination || !body.distance) return showNotification('Please fill all required fields.', 'error');
+      try {
+        const res = await fetch('/api/v1/routes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken}` },
+          body: JSON.stringify(body)
+        });
+        if (res.ok) { showNotification('Route created successfully!', 'success'); loadAdminRoutes(); loadRoutesCatalog(); loadAdminStats(); }
+        else showNotification('Failed to create route.', 'error');
+      } catch (err) { showNotification(err.message, 'error'); }
+    }
+
+    async function deleteRoute(id) {
+      if (!confirm(`Delete route #${id}?`)) return;
+      try {
+        const res = await fetch(`/api/v1/routes/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${activeToken}` } });
+        if (res.ok) { showNotification('Route deleted.', 'success'); loadAdminRoutes(); loadRoutesCatalog(); loadAdminStats(); }
+      } catch (e) {}
+    }
+
+    // Admin Trips
+    function updateTripBusDropdown() {
+      const sel = document.getElementById('tripBusSelect');
+      if (sel) sel.innerHTML = cachedBuses.length === 0
+        ? `<option disabled value="">No buses available</option>`
+        : cachedBuses.map(b => `<option value="${b.id}">${b.busNumber} — ${b.busType}</option>`).join('');
+    }
+
+    function updateTripRouteDropdown() {
+      const sel = document.getElementById('tripRouteSelect');
+      if (sel) sel.innerHTML = cachedRoutes.length === 0
+        ? `<option disabled value="">No routes available</option>`
+        : cachedRoutes.map(r => `<option value="${r.id}">${r.source} ➔ ${r.destination}</option>`).join('');
+    }
+
+    async function loadAdminTrips() {
+      const tbody = document.getElementById('adminTripsTableBody');
+      try {
+        const res  = await fetch('/api/v1/trips', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data)) {
+          tbody.innerHTML = data.length === 0
+            ? `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No trips scheduled.</td></tr>`
+            : data.map(t => `
+              <tr class="table-row-hover transition-colors">
+                <td class="px-4 py-3 font-mono font-bold text-brand-400">#${t.id}</td>
+                <td class="px-4 py-3 font-bold text-white">${t.route ? t.route.source + ' ➔ ' + t.route.destination : 'Route N/A'}</td>
+                <td class="px-4 py-3 text-slate-300"><div>${t.journeyDate}</div><div class="text-xs text-slate-500">${t.departureTime}</div></td>
+                <td class="px-4 py-3 font-bold text-emerald-400">${(t.fare || 0).toLocaleString()} BDT</td>
+                <td class="px-4 py-3 text-slate-300">${t.availableSeats} seats</td>
+                <td class="px-4 py-3 text-right">
+                  <button onclick="deleteTrip(${t.id})" class="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/25 text-xs font-bold hover:bg-rose-500/25 transition-all">Delete</button>
+                </td>
+              </tr>`).join('');
+        }
+      } catch (e) {}
+    }
+
+    async function handleCreateTrip() {
+      if (!activeToken || userRole !== 'ADMIN') return showNotification('ADMIN role required.', 'error');
+      const busId   = parseInt(document.getElementById('tripBusSelect').value);
+      const routeId = parseInt(document.getElementById('tripRouteSelect').value);
+      if (!busId || !routeId) return showNotification('Please select a bus and route.', 'error');
+
+      const body = {
+        bus:           { id: busId },
+        route:         { id: routeId },
+        journeyDate:   document.getElementById('tripDate').value || new Date().toISOString().split('T')[0],
+        departureTime: document.getElementById('tripDepTime').value + ':00',
+        arrivalTime:   document.getElementById('tripArrTime').value + ':00',
+        fare:          parseFloat(document.getElementById('tripFare').value),
+        availableSeats:parseInt(document.getElementById('tripSeats').value)
+      };
+      try {
+        const res = await fetch('/api/v1/trips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${activeToken}` },
+          body: JSON.stringify(body)
+        });
+        if (res.ok) { showNotification('Trip scheduled successfully!', 'success'); loadAdminTrips(); handleSearchTrips(); loadAdminStats(); }
+        else { const t = await res.text(); showNotification('Failed: ' + t, 'error'); }
+      } catch (err) { showNotification(err.message, 'error'); }
+    }
+
+    async function deleteTrip(id) {
+      if (!confirm(`Delete trip #${id}? All associated bookings must be cancelled first.`)) return;
+      try {
+        const res = await fetch(`/api/v1/trips/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${activeToken}` } });
+        if (res.ok) { showNotification('Trip deleted.', 'success'); loadAdminTrips(); loadAdminStats(); }
+        else showNotification('Failed to delete trip.', 'error');
+      } catch (e) {}
+    }
+
+    async function loadAdminAllBookings() {
+      const tbody = document.getElementById('adminAllBookingsTableBody');
+      tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">Loading all bookings...</td></tr>`;
+      try {
+        const res  = await fetch('/api/v1/bookings', { headers: { 'Authorization': `Bearer ${activeToken}` } });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data)) {
+          tbody.innerHTML = data.length === 0
+            ? `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">No bookings in system.</td></tr>`
+            : data.map(b => {
+              const statusClass = (b.status === 'CONFIRMED' || b.status === 'BOOKED')
+                ? 'bg-emerald-500/15 text-emerald-400'
+                : 'bg-rose-500/15 text-rose-400';
+              return `
+                <tr class="table-row-hover transition-colors">
+                  <td class="px-4 py-3 font-mono font-bold text-brand-400">#BK-${b.id}</td>
+                  <td class="px-4 py-3 text-slate-300">${b.user?.email || 'Unknown'}</td>
+                  <td class="px-4 py-3">${b.trip?.route ? b.trip.route.source + ' ➔ ' + b.trip.route.destination : `Trip #${b.trip?.id || 'N/A'}`}</td>
+                  <td class="px-4 py-3 font-bold text-emerald-400">Seat #${b.seatNumber}</td>
+                  <td class="px-4 py-3 font-bold text-white">${(b.totalFare || 0).toLocaleString()} BDT</td>
+                  <td class="px-4 py-3"><span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold ${statusClass}">${b.status}</span></td>
+                  <td class="px-4 py-3 text-right">
+                    <button onclick="cancelBooking(${b.id})" class="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/25 text-xs font-bold hover:bg-rose-500/25 transition-all">Cancel</button>
+                  </td>
+                </tr>`;
+            }).join('');
+        } else {
+          tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-500">ADMIN authentication required.</td></tr>`;
+        }
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-rose-400">Error: ${e.message}</td></tr>`;
+      }
+    }
+
+    // ===================================================
+    // TAB 6: API SANDBOX
+    // ===================================================
+    async function sendCustomRequest() {
+      const method      = document.getElementById('reqMethod').value;
+      const url         = document.getElementById('reqUrl').value;
+      const includeAuth = document.getElementById('reqIncludeAuth').checked;
+      const headers     = {};
+      if (includeAuth && activeToken) headers['Authorization'] = `Bearer ${activeToken}`;
+
+      try {
+        const res  = await fetch(url, { method, headers });
+        let text   = await res.text();
+        try { text = JSON.stringify(JSON.parse(text), null, 2); } catch (e) {}
+        document.getElementById('responseOutput').textContent = text;
+
+        const pill = document.getElementById('statusPill');
+        pill.classList.remove('hidden');
+        pill.textContent = `${res.status} ${res.statusText}`;
+        pill.className   = `text-xs font-mono px-3 py-1 rounded-full font-bold ${res.ok ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`;
+      } catch (err) {
+        document.getElementById('responseOutput').textContent = 'Request error: ' + err.message;
+      }
+    }
+
+    const auditEndpoints = [
+      { path: '/api/v1/auth/hello',                                  method: 'GET',    roles: 'Public',     authReq: false },
+      { path: '/api/v1/trips/search?source=Dhaka&destination=Chittagong', method: 'GET', roles: 'Public',  authReq: false },
+      { path: '/api/v1/buses',                                       method: 'GET',    roles: 'Public',     authReq: false },
+      { path: '/api/v1/routes',                                      method: 'GET',    roles: 'Public',     authReq: false },
+      { path: '/api/v1/users/me',                                    method: 'GET',    roles: 'USER, ADMIN',authReq: true  },
+      { path: '/api/v1/bookings/my-bookings',                        method: 'GET',    roles: 'USER, ADMIN',authReq: true  },
+      { path: '/api/v1/operators',                                   method: 'POST',   roles: 'ADMIN Only', authReq: true  },
+      { path: '/api/v1/buses',                                       method: 'POST',   roles: 'ADMIN Only', authReq: true  },
+      { path: '/api/v1/routes',                                      method: 'POST',   roles: 'ADMIN Only', authReq: true  },
+      { path: '/api/v1/admin/stats',                                 method: 'GET',    roles: 'ADMIN Only', authReq: true  },
+      { path: '/api/v1/bookings',                                    method: 'GET',    roles: 'ADMIN Only', authReq: true  },
+    ];
+
+    async function runSecurityAudit() {
+      const tbody = document.getElementById('auditTableBody');
+      tbody.innerHTML = auditEndpoints.map(() => `
+        <tr class="table-row-hover">
+          <td class="px-4 py-3 font-mono text-accent-400">Testing...</td>
+          <td colspan="4" class="px-4 py-3 text-slate-500">Pending</td>
+        </tr>`).join('');
+
+      tbody.innerHTML = '';
+      for (const ep of auditEndpoints) {
+        const headers = {};
+        if (ep.authReq && activeToken) headers['Authorization'] = `Bearer ${activeToken}`;
+        let statusText = 'Pending'; let statusClass = 'bg-slate-800 text-slate-400';
+        try {
+          const res = await fetch(ep.path, { method: ep.method, headers });
+          if (res.status >= 200 && res.status < 300) { statusText = `${res.status} ✓ Allowed`;  statusClass = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'; }
+          else if (res.status === 401) { statusText = `401 Unauthorized`; statusClass = 'bg-rose-500/20 text-rose-400 border border-rose-500/30'; }
+          else if (res.status === 403) { statusText = `403 Forbidden`;    statusClass = 'bg-amber-500/20 text-amber-400 border border-amber-500/30'; }
+          else { statusText = `${res.status} ${res.statusText}`; statusClass = 'bg-slate-800 text-slate-300'; }
+        } catch (err) { statusText = 'Connection Error'; }
+
+        const tr = document.createElement('tr');
+        tr.className = 'table-row-hover transition-colors';
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-mono text-accent-400 text-xs">${ep.path}</td>
+          <td class="px-4 py-3"><span class="px-2 py-0.5 rounded bg-slate-800 font-mono font-bold text-slate-200 text-xs">${ep.method}</span></td>
+          <td class="px-4 py-3 text-slate-300 text-xs font-semibold">${ep.roles}</td>
+          <td class="px-4 py-3 text-xs">${ep.authReq ? '🔒 Required' : '🌐 Public'}</td>
+          <td class="px-4 py-3"><span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold ${statusClass}">${statusText}</span></td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function copyToken() {
+      if (!activeToken) return showNotification('No active token session!', 'info');
+      navigator.clipboard.writeText(activeToken)
+        .then(() => showNotification('JWT Token copied to clipboard!', 'success'))
+        .catch(() => showNotification('Copy failed — please copy manually.', 'error'));
+    }
+
+    // ===================================================
+    // NOTIFICATION UTILITY
+    // ===================================================
+    function showNotification(msg, type = 'info') {
+      const existing = document.getElementById('floatingNotify');
+      if (existing) { existing.style.opacity = '0'; setTimeout(() => existing.remove(), 200); }
+
+      const toast = document.createElement('div');
+      toast.id = 'floatingNotify';
+
+      const configs = {
+        success: { bg: 'bg-emerald-600',  icon: '✓' },
+        error:   { bg: 'bg-rose-600',     icon: '✕' },
+        info:    { bg: 'bg-brand-600',    icon: 'ℹ' },
+        warning: { bg: 'bg-amber-600',    icon: '⚠' }
+      };
+      const cfg = configs[type] || configs.info;
+
+      toast.className = `fixed bottom-6 right-6 z-[100] flex items-center space-x-3 px-5 py-3.5 rounded-2xl ${cfg.bg} text-white font-semibold text-sm shadow-2xl transition-all duration-300 translate-y-2 opacity-0`;
+      toast.innerHTML = `<span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-black">${cfg.icon}</span><span>${msg}</span>`;
+      document.body.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
